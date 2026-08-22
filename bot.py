@@ -28,7 +28,7 @@ queues = {}
 active_calls = set()
 loop_enabled = set()
 
-INVIDIOUS_INSTANCES = [
+INVIDIOUS_INSTANCES = [ # updated
     "https://invidious.kavin.rocks",
     "https://vid.puffyan.us",
     "https://y.com.sb",
