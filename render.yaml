@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: aethomusic-bot
+    env: python
+    buildCommand: apt-get install -y ffmpeg && pip install -r requirements.txt
+    startCommand: python bot.py
