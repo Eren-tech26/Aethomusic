@@ -4,8 +4,9 @@ import os
 from aiohttp import web
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart, Command
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, BufferedInputFile
 import yt_dlp
+import aiohttp
 from config import BOT_TOKEN
 
 logging.basicConfig(level=logging.INFO)
@@ -47,7 +48,7 @@ async def start(message: types.Message):
         ]
     ])
     await message.reply_photo(
-        photo=FSInputFile("start_image.png"),
+        photo="https://telegra.ph/file/your-image.jpg",
         caption="🎵 ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴀᴇᴛʜᴏ ᴍᴜsɪᴄ ʙᴏᴛ! 🎵\n\nᴜsᴇ /ᴘʟᴀʏ [sᴏɴɢ]",
         reply_markup=keyboard
     )
@@ -105,13 +106,27 @@ async def play(message: types.Message):
         await message.reply("❌ ᴜsᴀɢᴇ: /ᴘʟᴀʏ [sᴏɴɢ]")
         return
     query = args[1]
-    await message.reply(f"🔍 sᴇᴀʀᴄʜɪɴɢ: {query}...")
+    status = await message.reply(f"🔍 sᴇᴀʀᴄʜɪɴɢ: {query}...")
     song = search_youtube(query)
     if not song:
-        await message.reply("❌ ɴᴏᴛ ғᴏᴜɴᴅ!")
+        await status.edit_text("❌ ɴᴏᴛ ғᴏᴜɴᴅ!")
         return
     current_queue.append(song)
-    await message.reply(f"✅ ᴀᴅᴅᴇᴅ: {song.get('title')}")
+    audio_url = song.get('url')
+    title = song.get('title', 'Unknown')
+    await status.edit_text(f"⬇️ ᴅᴏᴡɴʟᴏᴀᴅɪɴɢ: {title}...")
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(audio_url) as resp:
+                data = await resp.read()
+        await message.answer_audio(
+            BufferedInputFile(data, filename=f"{title}.mp3"),
+            title=title
+        )
+        await status.delete()
+    except Exception as e:
+        logger.error(f"Download error: {e}")
+        await status.edit_text("❌ ғᴀɪʟᴇᴅ ᴛᴏ sᴛʀᴇᴀᴍ. ᴛʀʏ ᴀɴᴏᴛʜᴇʀ sᴏɴɢ.")
 
 @dp.message(Command("queue"))
 async def queue_cmd(message: types.Message):
@@ -138,13 +153,14 @@ async def start_web_server():
     app.router.add_get("/", handle_ping)
     runner = web.AppRunner(app)
     await runner.setup()
-    port = int(os.environ.get("PORT", 8000))
+    port = int(os.environ.get("PORT", 10000))
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
     logger.info(f"Web server running on port {port}")
 
 async def main():
     logger.info("🎵 Bot started!")
+    await bot.delete_webhook(drop_pending_updates=True)
     await start_web_server()
     await dp.start_polling(bot)
 
