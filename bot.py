@@ -3,6 +3,7 @@ import logging
 import os
 import io
 import aiohttp
+import yt_dlp
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from aiohttp import web
 from pyrogram import Client, filters
@@ -28,44 +29,12 @@ queues = {}
 active_calls = set()
 loop_enabled = set()
 
-INVIDIOUS_INSTANCES = [
-    "https://invidious.io.lol",
-    "https://invidious.perennialte.ch",
-    "https://inv.nadeko.net",
-]
-
-async def invidious_search(query):
-    async with aiohttp.ClientSession() as session:
-        for instance in INVIDIOUS_INSTANCES:
-            try:
-                url = f"{instance}/api/v1/search?q={aiohttp.helpers.quote(query)}&type=video&fields=videoId,title,videoThumbnails"
-                async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        if data:
-                            return data[0], instance
-            except Exception as e:
-                logger.warning(f"Invidious search failed on {instance}: {e}")
-                continue
-    return None, None
-
-async def invidious_stream_url(video_id, instance):
-    async with aiohttp.ClientSession() as session:
-        for inst in [instance] + [i for i in INVIDIOUS_INSTANCES if i != instance]:
-            try:
-                url = f"{inst}/api/v1/videos/{video_id}?fields=adaptiveFormats,title"
-                async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        formats = data.get("adaptiveFormats", [])
-                        audio_formats = [f for f in formats if f.get("type", "").startswith("audio")]
-                        if audio_formats:
-                            best = sorted(audio_formats, key=lambda x: int(x.get("bitrate", 0)), reverse=True)[0]
-                            return best.get("url")
-            except Exception as e:
-                logger.warning(f"Invidious stream failed on {inst}: {e}")
-                continue
-    return None
+YDL_OPTS = {
+    'format': 'bestaudio/best',
+    'quiet': True,
+    'no_warnings': True,
+    'extractor_args': {'youtube': {'player_client': ['android']}},
+}
 
 def get_uptime():
     seconds = int(_time.time() - START_TIME)
@@ -73,6 +42,18 @@ def get_uptime():
     hours, seconds = divmod(seconds, 3600)
     minutes, seconds = divmod(seconds, 60)
     return f"{days}ᴅ {hours}ʜ {minutes}ᴍ {seconds}s"
+
+async def fetch_audio(query):
+    ev_loop = asyncio.get_event_loop()
+    try:
+        with yt_dlp.YoutubeDL(YDL_OPTS) as ydl:
+            info = await ev_loop.run_in_executor(None, lambda: ydl.extract_info(f"ytsearch:{query}", download=False))
+            if info and "entries" in info and info["entries"]:
+                entry = info["entries"][0]
+                return entry.get("url"), entry.get("title", "Unknown"), entry.get("thumbnail")
+    except Exception as e:
+        logger.error(f"yt_dlp error: {e}")
+    return None, None, None
 
 async def get_edited_thumbnail(thumb_url):
     try:
@@ -161,35 +142,24 @@ async def play(client, message):
     await asyncio.sleep(0.5)
     await s1.edit("🎧 ᴘʀᴇᴘᴀʀɪɴɢ sᴛʀᴇᴀᴍ...")
 
-    result, instance = await invidious_search(query)
+    url, title, thumb_url = await fetch_audio(query)
 
-    if not result:
+    if not url:
         await s1.edit("❌ sᴏɴɢ ɴᴏᴛ ғᴏᴜɴᴅ!")
-        return
-
-    video_id = result.get("videoId")
-    title = result.get("title", "Unknown")
-    thumbs = result.get("videoThumbnails", [])
-    thumb_url = thumbs[0].get("url") if thumbs else None
-
-    stream_url = await invidious_stream_url(video_id, instance)
-
-    if not stream_url:
-        await s1.edit("❌ sᴛʀᴇᴀᴍ ᴜʀʟ ɴᴏᴛ ғᴏᴜɴᴅ!")
         return
 
     await s1.delete()
 
     if chat_id not in queues:
         queues[chat_id] = []
-    queues[chat_id].append({"url": stream_url, "title": title, "thumb": thumb_url})
+    queues[chat_id].append({"url": url, "title": title, "thumb": thumb_url})
 
     if chat_id in active_calls:
         await message.reply(f"📝 ᴀᴅᴅᴇᴅ ᴛᴏ ǫᴜᴇᴜᴇ: {title}")
         return
 
     try:
-        await call_py.play(chat_id, MediaStream(stream_url))
+        await call_py.play(chat_id, MediaStream(url))
         active_calls.add(chat_id)
         thumb_buf = await get_edited_thumbnail(thumb_url) if thumb_url else None
         caption = f"🎵 ɴᴏᴡ ᴘʟᴀʏɪɴɢ\n\n**{title}**"
@@ -230,7 +200,6 @@ async def cb_skip(client, callback):
 
 @app.on_callback_query(filters.regex(r"^prev_"))
 async def cb_prev(client, callback):
-    chat_id = int(callback.data.split("_")[-1])
     await callback.answer("⚠️ ɴᴏ ᴘʀᴇᴠɪᴏᴜs sᴏɴɢ", show_alert=True)
 
 @app.on_callback_query(filters.regex(r"^loop_"))
