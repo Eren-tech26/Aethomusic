@@ -12,6 +12,9 @@ from config import BOT_TOKEN, API_ID, API_HASH
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+
 app = Client("aethomusic", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 call_py = PyTgCalls(app)
 
@@ -173,4 +176,6 @@ async def main():
     await asyncio.get_event_loop().create_future()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(main())
