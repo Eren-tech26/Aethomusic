@@ -1,21 +1,22 @@
-import yt_dlp
-import os
+import aiohttp
+import asyncio
 
-YDL_OPTS = {
-    'format': 'bestaudio[ext=m4a]/bestaudio/best',
-    'quiet': True,
-    'no_warnings': True,
-    'socket_timeout': 30,
-    'extractor_args': {'youtube': {'player_client': ['android', 'ios', 'web']}},
-    'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
-}
-
-async def download_song(video_id: str):
-    """Download song from YouTube"""
+async def download_song(query: str):
+    """Fetch from external API instead of YouTube directly"""
     try:
-        with yt_dlp.YoutubeDL(YDL_OPTS) as ydl:
-            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
-            return info.get("url"), info.get("title"), info.get("thumbnail")
+        async with aiohttp.ClientSession() as session:
+            # Use thequickearn API
+            async with session.get(
+                f"https://api.thequickearn.xyz/search?q={query}&type=audio",
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if data.get("results"):
+                        result = data["results"][0]
+                        return result.get("url"), result.get("title"), result.get("thumbnail")
     except Exception as e:
-        print(f"Error: {e}")
-    return None, None, None
+        print(f"API Error: {e}")
+    
+    # Fallback: return YouTube search link
+    return f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}", query, None
