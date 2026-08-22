@@ -5,7 +5,7 @@ from aiohttp import web
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pytgcalls import PyTgCalls
-from pytgcalls.types import AudioPiped, AudioParameters
+from pytgcalls.types import MediaStream
 import yt_dlp
 from config import BOT_TOKEN, API_ID, API_HASH
 
@@ -16,14 +16,11 @@ app = Client("aethomusic", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN
 call_py = PyTgCalls(app)
 
 queues = {}
+active_calls = set()
 
 def get_audio_url(query):
     try:
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'quiet': True,
-            'no_warnings': True,
-        }
+        ydl_opts = {'format': 'bestaudio/best', 'quiet': True, 'no_warnings': True}
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"ytsearch:{query}", download=False)
             if info and 'entries' in info:
@@ -75,18 +72,19 @@ async def play(client, message):
 
     if chat_id not in queues:
         queues[chat_id] = []
-
     queues[chat_id].append({"url": url, "title": title})
 
-    try:
-        active = await call_py.get_active_call(chat_id)
+    if chat_id in active_calls:
         await status.edit(f"📝 ᴀᴅᴅᴇᴅ ᴛᴏ qᴜᴇᴜᴇ: {title}")
-    except:
+        return
+
+    try:
+        await call_py.play(chat_id, MediaStream(url))
+        active_calls.add(chat_id)
         await status.edit(f"🎵 ᴘʟᴀʏɪɴɢ: {title}")
-        await call_py.join_group_call(
-            chat_id,
-            AudioPiped(url, AudioParameters(bitrate=128)),
-        )
+    except Exception as e:
+        logger.error(f"Play error: {e}")
+        await status.edit(f"❌ ᴇʀʀᴏʀ: {e}")
 
 @app.on_message(filters.command("skip") & filters.group)
 async def skip(client, message):
@@ -95,13 +93,11 @@ async def skip(client, message):
         queues[chat_id].pop(0)
     if chat_id in queues and queues[chat_id]:
         next_song = queues[chat_id][0]
-        await call_py.change_stream(
-            chat_id,
-            AudioPiped(next_song['url'], AudioParameters(bitrate=128))
-        )
+        await call_py.play(chat_id, MediaStream(next_song['url']))
         await message.reply(f"⏭️ sᴋɪᴘᴘᴇᴅ! ᴘʟᴀʏɪɴɢ: {next_song['title']}")
     else:
-        await call_py.leave_group_call(chat_id)
+        await call_py.leave_call(chat_id)
+        active_calls.discard(chat_id)
         await message.reply("⏹️ qᴜᴇᴜᴇ ᴇɴᴅᴇᴅ!")
 
 @app.on_message(filters.command("stop") & filters.group)
@@ -109,16 +105,17 @@ async def stop(client, message):
     chat_id = message.chat.id
     queues.pop(chat_id, None)
     try:
-        await call_py.leave_group_call(chat_id)
-    except:
+        await call_py.leave_call(chat_id)
+    except Exception:
         pass
+    active_calls.discard(chat_id)
     await message.reply("⏹️ sᴛᴏᴘᴘᴇᴅ!")
 
 @app.on_message(filters.command("pause") & filters.group)
 async def pause(client, message):
     chat_id = message.chat.id
     try:
-        await call_py.pause_stream(chat_id)
+        await call_py.pause(chat_id)
         await message.reply("⏸️ ᴘᴀᴜsᴇᴅ!")
     except Exception as e:
         await message.reply(f"❌ {e}")
@@ -127,7 +124,7 @@ async def pause(client, message):
 async def resume(client, message):
     chat_id = message.chat.id
     try:
-        await call_py.resume_stream(chat_id)
+        await call_py.resume(chat_id)
         await message.reply("▶️ ʀᴇsᴜᴍᴇᴅ!")
     except Exception as e:
         await message.reply(f"❌ {e}")
@@ -153,6 +150,21 @@ async def help_cmd(client, message):
         "/queue — sʜᴏᴡ qᴜᴇᴜᴇ\n"
         "/stop — sᴛᴏᴘ & ʟᴇᴀᴠᴇ"
     )
+
+@call_py.on_stream_end()
+async def stream_end_handler(client, update):
+    chat_id = update.chat_id
+    if chat_id in queues and queues[chat_id]:
+        queues[chat_id].pop(0)
+    if chat_id in queues and queues[chat_id]:
+        next_song = queues[chat_id][0]
+        await call_py.play(chat_id, MediaStream(next_song['url']))
+    else:
+        try:
+            await call_py.leave_call(chat_id)
+        except Exception:
+            pass
+        active_calls.discard(chat_id)
 
 async def handle_ping(request):
     return web.Response(text="AethoMusic alive")
