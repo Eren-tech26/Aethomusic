@@ -9,7 +9,6 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pytgcalls import PyTgCalls
 from pytgcalls.types import MediaStream
-import yt_dlp
 from config import BOT_TOKEN, API_ID, API_HASH, SESSION_STRING
 
 import time as _time
@@ -27,44 +26,64 @@ call_py = PyTgCalls(assistant)
 
 queues = {}
 active_calls = set()
+loop_enabled = set()
 
-ydl_opts = {
-    'format': 'bestaudio/best',
-    'quiet': True,
-    'no_warnings': True,
-    'extractor_args': {
-        'youtube': {
-            'player_client': ['android'],
-        }
-    },
-}
+INVIDIOUS_INSTANCES = [
+    "https://invidious.kavin.rocks",
+    "https://vid.puffyan.us",
+    "https://y.com.sb",
+    "https://invidious.nerdvpn.de",
+    "https://invidious.snopyta.org",
+]
+
+async def invidious_search(query):
+    async with aiohttp.ClientSession() as session:
+        for instance in INVIDIOUS_INSTANCES:
+            try:
+                url = f"{instance}/api/v1/search?q={aiohttp.helpers.quote(query)}&type=video&fields=videoId,title,videoThumbnails"
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        if data:
+                            return data[0], instance
+            except Exception as e:
+                logger.warning(f"Invidious search failed on {instance}: {e}")
+                continue
+    return None, None
+
+async def invidious_stream_url(video_id, instance):
+    async with aiohttp.ClientSession() as session:
+        for inst in [instance] + [i for i in INVIDIOUS_INSTANCES if i != instance]:
+            try:
+                url = f"{inst}/api/v1/videos/{video_id}?fields=adaptiveFormats,title"
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        formats = data.get("adaptiveFormats", [])
+                        audio_formats = [f for f in formats if f.get("type", "").startswith("audio")]
+                        if audio_formats:
+                            best = sorted(audio_formats, key=lambda x: int(x.get("bitrate", 0)), reverse=True)[0]
+                            return best.get("url")
+            except Exception as e:
+                logger.warning(f"Invidious stream failed on {inst}: {e}")
+                continue
+    return None
 
 def get_uptime():
     seconds = int(_time.time() - START_TIME)
     days, seconds = divmod(seconds, 86400)
     hours, seconds = divmod(seconds, 3600)
     minutes, seconds = divmod(seconds, 60)
-    return f"{days}days, {hours}h:{minutes}m:{seconds}s"
-
-def get_audio_url(query):
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f"ytsearch:{query}", download=False)
-            if info and 'entries' in info:
-                entry = info['entries'][0]
-                return entry.get('url'), entry.get('title')
-    except Exception as e:
-        logger.error(f"yt_dlp error: {e}")
-    return None, None
+    return f"{days}ᴅ {hours}ʜ {minutes}ᴍ {seconds}s"
 
 async def get_edited_thumbnail(thumb_url):
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(thumb_url) as resp:
+            async with session.get(thumb_url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
                 data = await resp.read()
                 img = Image.open(io.BytesIO(data)).convert("RGB")
                 img = img.resize((640, 360))
-                img = img.filter(ImageFilter.GaussianBlur(radius=8))
+                img = img.filter(ImageFilter.GaussianBlur(radius=10))
                 draw = ImageDraw.Draw(img)
                 text = "ᴀᴇᴛʜᴏɴɪx ᴍᴜsɪᴄ"
                 try:
@@ -82,49 +101,49 @@ async def get_edited_thumbnail(thumb_url):
                 buf.name = "thumb.jpg"
                 return buf
     except Exception as e:
-        logger.error(f"Thumbnail edit error: {e}")
+        logger.error(f"Thumbnail error: {e}")
         return None
+
+def build_controls(chat_id):
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("⏮ ᴘʀᴇᴠ", callback_data=f"prev_{chat_id}"),
+            InlineKeyboardButton("⏯ ᴘᴀᴜsᴇ", callback_data=f"pause_resume_{chat_id}"),
+            InlineKeyboardButton("⏭ ɴᴇxᴛ", callback_data=f"skip_{chat_id}"),
+        ],
+        [
+            InlineKeyboardButton("🔁 ʟᴏᴏᴘ", callback_data=f"loop_{chat_id}"),
+            InlineKeyboardButton("📜 ǫᴜᴇᴜᴇ", callback_data=f"queue_{chat_id}"),
+            InlineKeyboardButton("⏹ sᴛᴏᴘ", callback_data=f"stop_{chat_id}"),
+        ],
+    ])
 
 @app.on_message(filters.command("start"))
 async def start(client, message):
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("➕ ᴀᴅᴅ ᴍᴇ ɪɴ ʏᴏᴜʀ ɢʀᴏᴜᴘ", url=f"https://t.me/{(await client.get_me()).username}?startgroup=true")],
-        [InlineKeyboardButton("❓ ʜᴇʟᴘ ᴀɴᴅ ᴄᴏᴍᴍᴀɴᴅs", callback_data="commands")],
+        [InlineKeyboardButton("➕ ᴀᴅᴅ ᴍᴇ ᴛᴏ ɢʀᴏᴜᴘ", url=f"https://t.me/{(await client.get_me()).username}?startgroup=true")],
+        [InlineKeyboardButton("❓ ʜᴇʟᴘ & ᴄᴏᴍᴍᴀɴᴅs", callback_data="commands")],
         [
             InlineKeyboardButton("👨‍💻 ᴏᴡɴᴇʀ", url="https://t.me/eren_aethonix"),
-            InlineKeyboardButton("📢 sᴜᴘᴘᴏʀᴛ", url="https://t.me/aethosupport")
+            InlineKeyboardButton("📢 sᴜᴘᴘᴏʀᴛ", url="https://t.me/aethosupport"),
         ],
-        [InlineKeyboardButton("🔗 ᴄʜᴀɴɴᴇʟ", url="https://t.me/Aethonix_network")]
+        [InlineKeyboardButton("🔗 ᴄʜᴀɴɴᴇʟ", url="https://t.me/Aethonix_network")],
     ])
     caption = (
         "──── 「 ᴀᴇᴛʜᴏɴɪx ᴍᴜsɪᴄ 」 ────\n\n"
-        f"ʜᴏʟᴀᴀ 耀•|{message.from_user.first_name}!!\n\n"
-        "ɪ ᴀᴍ ᴛʜᴇ ғᴀsᴛ ᴀɴᴅ ᴘᴏᴡᴇʀғᴜʟ ᴍᴜsɪᴄ ᴘʟᴀʏᴇʀ ʙᴏᴛ ᴡɪᴛʜ sᴏᴍᴇ ᴀᴡᴇsᴏᴍᴇ ғᴇᴀᴛᴜʀᴇs.\n"
+        f"ʜᴏʟᴀ 耀•|{message.from_user.first_name}!!\n\n"
+        "ɪ ᴀᴍ ᴀ ғᴀsᴛ & ᴘᴏᴡᴇʀғᴜʟ ᴍᴜsɪᴄ ʙᴏᴛ.\n"
         "- - - - - - - - - - - -\n"
-        f"➥ᴜᴘᴛɪᴍᴇ: {get_uptime()}\n"
-        "➥sᴇʀᴠᴇʀsᴛᴏʀᴀɢᴇ: ʀᴇɴᴅᴇʀ ᴄʟᴏᴜᴅ\n"
+        f"➥ ᴜᴘᴛɪᴍᴇ: {get_uptime()}\n"
+        "➥ sᴇʀᴠᴇʀ: ʀᴇɴᴅᴇʀ ᴄʟᴏᴜᴅ\n"
         "- - - - - - - - - - - -\n\n"
-        "ᴄʟɪᴄᴋ ᴏɴ ᴛʜᴇ ʜᴇʟᴘ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ɪɴғᴏʀᴍᴀᴛɪᴏɴ ᴀʙᴏᴜᴛ ᴍʏ ᴍᴏᴅᴜʟᴇs ᴀɴᴅ ᴄᴏᴍᴍᴀɴᴅs."
+        "ᴜsᴇ /ʜᴇʟᴘ ᴛᴏ sᴇᴇ ᴄᴏᴍᴍᴀɴᴅs."
     )
     await message.reply_photo(
         photo="https://i.ibb.co/9mKvy2dM/196647.png",
         caption=caption,
         reply_markup=keyboard
     )
-
-def build_controls(chat_id):
-    return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("⏪ 10s", callback_data=f"seek_back_{chat_id}"),
-            InlineKeyboardButton("⏯️", callback_data=f"pause_resume_{chat_id}"),
-            InlineKeyboardButton("10s ⏩", callback_data=f"seek_fwd_{chat_id}")
-        ],
-        [
-            InlineKeyboardButton("⏭️ sᴋɪᴘ", callback_data=f"skip_{chat_id}"),
-            InlineKeyboardButton("⏹️ sᴛᴏᴘ", callback_data=f"stop_{chat_id}")
-        ],
-        [InlineKeyboardButton("📜 ǫᴜᴇᴜᴇ", callback_data=f"queue_{chat_id}")]
-    ])
 
 @app.on_message(filters.command("play") & filters.group)
 async def play(client, message):
@@ -136,56 +155,50 @@ async def play(client, message):
     chat_id = message.chat.id
     query = args[1]
 
-    status = await message.reply("🪄")
-    await asyncio.sleep(0.6)
-    await status.edit("🔍 sᴇᴀʀᴄʜɪɴɢ...")
-    await asyncio.sleep(0.6)
-    await status.delete()
+    s1 = await message.reply("🪄")
+    await asyncio.sleep(0.8)
+    await s1.edit("🔍 sᴇᴀʀᴄʜɪɴɢ...")
+    await asyncio.sleep(0.8)
+    await s1.edit("⬇️ ғᴇᴛᴄʜɪɴɢ ᴀᴜᴅɪᴏ...")
+    await asyncio.sleep(0.5)
+    await s1.edit("🎧 ᴘʀᴇᴘᴀʀɪɴɢ sᴛʀᴇᴀᴍ...")
 
-    status = await message.reply("⬇️ ғᴇᴛᴄʜɪɴɢ ᴀᴜᴅɪᴏ...")
-    await asyncio.sleep(0.6)
-    await status.delete()
+    result, instance = await invidious_search(query)
 
-    status = await message.reply("🎧 ᴘʀᴇᴘᴀʀɪɴɢ sᴛʀᴇᴀᴍ...")
-
-    entry = None
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f"ytsearch:{query}", download=False)
-            entry = info['entries'][0] if info and 'entries' in info else None
-    except Exception as e:
-        logger.error(f"yt_dlp error: {e}")
-
-    await status.delete()
-
-    if not entry:
-        await message.reply("❌ ɴᴏᴛ ғᴏᴜɴᴅ!")
+    if not result:
+        await s1.edit("❌ sᴏɴɢ ɴᴏᴛ ғᴏᴜɴᴅ!")
         return
 
-    url = entry.get('url')
-    title = entry.get('title', 'Unknown')
-    thumb_url = entry.get('thumbnail')
+    video_id = result.get("videoId")
+    title = result.get("title", "Unknown")
+    thumbs = result.get("videoThumbnails", [])
+    thumb_url = thumbs[0].get("url") if thumbs else None
+
+    stream_url = await invidious_stream_url(video_id, instance)
+
+    if not stream_url:
+        await s1.edit("❌ sᴛʀᴇᴀᴍ ᴜʀʟ ɴᴏᴛ ғᴏᴜɴᴅ!")
+        return
+
+    await s1.delete()
 
     if chat_id not in queues:
         queues[chat_id] = []
-    queues[chat_id].append({"url": url, "title": title, "thumb": thumb_url})
+    queues[chat_id].append({"url": stream_url, "title": title, "thumb": thumb_url})
 
     if chat_id in active_calls:
         await message.reply(f"📝 ᴀᴅᴅᴇᴅ ᴛᴏ ǫᴜᴇᴜᴇ: {title}")
         return
 
     try:
-        await call_py.play(chat_id, MediaStream(url))
+        await call_py.play(chat_id, MediaStream(stream_url))
         active_calls.add(chat_id)
-
         thumb_buf = await get_edited_thumbnail(thumb_url) if thumb_url else None
-        caption = f"🎵 ɴᴏᴡ ᴘʟᴀʏɪɴɢ: {title}"
-
+        caption = f"🎵 ɴᴏᴡ ᴘʟᴀʏɪɴɢ\n\n**{title}**"
         if thumb_buf:
             await message.reply_photo(photo=thumb_buf, caption=caption, reply_markup=build_controls(chat_id))
         else:
             await message.reply(caption, reply_markup=build_controls(chat_id))
-
     except Exception as e:
         logger.error(f"Play error: {e}")
         await message.reply(f"❌ ᴇʀʀᴏʀ: {e}")
@@ -195,7 +208,7 @@ async def cb_pause_resume(client, callback):
     chat_id = int(callback.data.split("_")[-1])
     try:
         await call_py.pause(chat_id)
-        await callback.answer("⏸️ ᴘᴀᴜsᴇᴅ")
+        await callback.answer("⏸ ᴘᴀᴜsᴇᴅ")
     except Exception:
         try:
             await call_py.resume(chat_id)
@@ -210,37 +223,49 @@ async def cb_skip(client, callback):
         queues[chat_id].pop(0)
     if chat_id in queues and queues[chat_id]:
         next_song = queues[chat_id][0]
-        await call_py.play(chat_id, MediaStream(next_song['url']))
-        await callback.answer(f"⏭️ {next_song['title']}")
+        await call_py.play(chat_id, MediaStream(next_song["url"]))
+        await callback.answer(f"⏭ {next_song['title'][:30]}")
     else:
         await call_py.leave_call(chat_id)
         active_calls.discard(chat_id)
-        await callback.answer("⏹️ ǫᴜᴇᴜᴇ ᴇɴᴅᴇᴅ")
+        await callback.answer("⏹ ǫᴜᴇᴜᴇ ᴇɴᴅᴇᴅ")
+
+@app.on_callback_query(filters.regex(r"^prev_"))
+async def cb_prev(client, callback):
+    chat_id = int(callback.data.split("_")[-1])
+    await callback.answer("⚠️ ɴᴏ ᴘʀᴇᴠɪᴏᴜs sᴏɴɢ", show_alert=True)
+
+@app.on_callback_query(filters.regex(r"^loop_"))
+async def cb_loop(client, callback):
+    chat_id = int(callback.data.split("_")[-1])
+    if chat_id in loop_enabled:
+        loop_enabled.discard(chat_id)
+        await callback.answer("🔁 ʟᴏᴏᴘ ᴏғғ")
+    else:
+        loop_enabled.add(chat_id)
+        await callback.answer("🔁 ʟᴏᴏᴘ ᴏɴ")
 
 @app.on_callback_query(filters.regex(r"^stop_"))
 async def cb_stop(client, callback):
     chat_id = int(callback.data.split("_")[-1])
     queues.pop(chat_id, None)
+    loop_enabled.discard(chat_id)
     try:
         await call_py.leave_call(chat_id)
     except Exception:
         pass
     active_calls.discard(chat_id)
-    await callback.answer("⏹️ sᴛᴏᴘᴘᴇᴅ")
+    await callback.answer("⏹ sᴛᴏᴘᴘᴇᴅ")
 
 @app.on_callback_query(filters.regex(r"^queue_"))
 async def cb_queue(client, callback):
     chat_id = int(callback.data.split("_")[-1])
     q = queues.get(chat_id, [])
     if not q:
-        await callback.answer("📭 ᴇᴍᴘᴛʏ", show_alert=True)
+        await callback.answer("📭 ǫᴜᴇᴜᴇ ɪs ᴇᴍᴘᴛʏ", show_alert=True)
         return
     text = "\n".join(f"{i}. {s['title']}" for i, s in enumerate(q, 1))
     await callback.answer(text[:200], show_alert=True)
-
-@app.on_callback_query(filters.regex(r"^seek_"))
-async def cb_seek(client, callback):
-    await callback.answer("⚠️ sᴇᴇᴋ ɴᴏᴛ ʏᴇᴛ sᴜᴘᴘᴏʀᴛᴇᴅ", show_alert=True)
 
 @app.on_message(filters.command("skip") & filters.group)
 async def skip(client, message):
@@ -249,30 +274,31 @@ async def skip(client, message):
         queues[chat_id].pop(0)
     if chat_id in queues and queues[chat_id]:
         next_song = queues[chat_id][0]
-        await call_py.play(chat_id, MediaStream(next_song['url']))
-        await message.reply(f"⏭️ sᴋɪᴘᴘᴇᴅ! ᴘʟᴀʏɪɴɢ: {next_song['title']}")
+        await call_py.play(chat_id, MediaStream(next_song["url"]))
+        await message.reply(f"⏭ sᴋɪᴘᴘᴇᴅ! ɴᴏᴡ ᴘʟᴀʏɪɴɢ: {next_song['title']}")
     else:
         await call_py.leave_call(chat_id)
         active_calls.discard(chat_id)
-        await message.reply("⏹️ qᴜᴇᴜᴇ ᴇɴᴅᴇᴅ!")
+        await message.reply("⏹ ǫᴜᴇᴜᴇ ᴇɴᴅᴇᴅ!")
 
 @app.on_message(filters.command("stop") & filters.group)
 async def stop(client, message):
     chat_id = message.chat.id
     queues.pop(chat_id, None)
+    loop_enabled.discard(chat_id)
     try:
         await call_py.leave_call(chat_id)
     except Exception:
         pass
     active_calls.discard(chat_id)
-    await message.reply("⏹️ sᴛᴏᴘᴘᴇᴅ!")
+    await message.reply("⏹ sᴛᴏᴘᴘᴇᴅ!")
 
 @app.on_message(filters.command("pause") & filters.group)
 async def pause(client, message):
     chat_id = message.chat.id
     try:
         await call_py.pause(chat_id)
-        await message.reply("⏸️ ᴘᴀᴜsᴇᴅ!")
+        await message.reply("⏸ ᴘᴀᴜsᴇᴅ!")
     except Exception as e:
         await message.reply(f"❌ {e}")
 
@@ -290,9 +316,9 @@ async def queue_cmd(client, message):
     chat_id = message.chat.id
     q = queues.get(chat_id, [])
     if not q:
-        await message.reply("📭 qᴜᴇᴜᴇ ɪs ᴇᴍᴘᴛʏ!")
+        await message.reply("📭 ǫᴜᴇᴜᴇ ɪs ᴇᴍᴘᴛʏ!")
         return
-    text = "🎵 qᴜᴇᴜᴇ:\n\n" + "\n".join(f"{i}. {s['title']}" for i, s in enumerate(q, 1))
+    text = "🎵 ǫᴜᴇᴜᴇ:\n\n" + "\n".join(f"{i}. {s['title']}" for i, s in enumerate(q, 1))
     await message.reply(text)
 
 @app.on_message(filters.command("help"))
@@ -303,7 +329,7 @@ async def help_cmd(client, message):
         "/skip — sᴋɪᴘ ᴄᴜʀʀᴇɴᴛ\n"
         "/pause — ᴘᴀᴜsᴇ\n"
         "/resume — ʀᴇsᴜᴍᴇ\n"
-        "/queue — sʜᴏᴡ qᴜᴇᴜᴇ\n"
+        "/queue — sʜᴏᴡ ǫᴜᴇᴜᴇ\n"
         "/stop — sᴛᴏᴘ & ʟᴇᴀᴠᴇ"
     )
 
