@@ -89,9 +89,7 @@ async def start(client, message):
 
 @app.on_message(filters.command("play") & filters.group)
 async def play(client, message):
-    if not await is_admin(message.chat.id, message.from_user.id):
-        return await message.reply("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs ᴄᴀɴ ᴘʟᴀʏ ᴍᴜsɪᴄ")
-    
+
     args = message.text.split(maxsplit=1)
     if len(args) < 2:
         return await message.reply("❌ ᴜsᴀɢᴇ: /play [song name]")
