@@ -166,9 +166,9 @@ async def start_web():
 
 async def main():
     logger.info("🎵 AethoMusic starting...")
-    await start_web()
-    await call_py.start()
     await app.start()
+    await call_py.start()
+    await start_web()
     logger.info("🎵 Bot live!")
     await asyncio.get_event_loop().create_future()
 
