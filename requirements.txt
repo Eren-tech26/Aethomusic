@@ -1,5 +1,5 @@
 pyrogram==2.0.106
-pytgcalls==2.1.0
+pytgcalls==2.0.0
 yt-dlp==2026.8.19
 aiohttp==3.14.3
 python-dotenv==1.0.1
