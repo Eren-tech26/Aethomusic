@@ -7,7 +7,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pytgcalls import PyTgCalls
 from pytgcalls.types import MediaStream
 import yt_dlp
-from config import BOT_TOKEN, API_ID, API_HASH
+from config import BOT_TOKEN, API_ID, API_HASH, SESSION_STRING
 
 loop = asyncio.get_event_loop()
 
@@ -18,7 +18,8 @@ loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
 
 app = Client("aethomusic", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
-call_py = PyTgCalls(app)
+assistant = Client("aethomusic_assistant", api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
+call_py = PyTgCalls(assistant)
 
 queues = {}
 active_calls = set()
@@ -203,6 +204,7 @@ async def start_web():
 async def main():
     logger.info("🎵 AethoMusic starting...")
     await app.start()
+    await assistant.start()
     await call_py.start()
     await start_web()
     logger.info("🎵 Bot live!")
