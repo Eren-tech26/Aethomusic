@@ -1,28 +1,39 @@
-import yt_dlp
-import asyncio
-import os
-
-YDL_OPTS = {
-    'format': 'bestaudio[ext=m4a]/bestaudio/best',
-    'quiet': True,
-    'no_warnings': True,
-    'socket_timeout': 30,
-    'cookiefile': os.path.join(os.path.dirname(__file__), '..', 'cookies.txt'),
-    'http_headers': {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    },
-}
+import aiohttp
 
 async def download_song(query: str):
     try:
-        loop = asyncio.get_event_loop()
-        with yt_dlp.YoutubeDL(YDL_OPTS) as ydl:
-            info = await loop.run_in_executor(None,
-                lambda: ydl.extract_info(f"ytsearch:{query}", download=False)
-            )
-            if info and "entries" in info and info["entries"]:
-                entry = info["entries"][0]
-                return entry.get("url"), entry.get("title"), entry.get("thumbnail")
+        async with aiohttp.ClientSession() as session:
+            # Search for the video
+            async with session.get(
+                f"https://pipedapi.kavin.rocks/search?q={query}&filter=videos",
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as resp:
+                if resp.status != 200:
+                    return None, None, None
+                data = await resp.json()
+                
+            if not data.get("items"):
+                return None, None, None
+            
+            video = data["items"][0]
+            video_id = video["url"].split("=")[-1]
+            title = video.get("title", query)
+            thumbnail = video.get("thumbnail", "")
+            
+            # Get stream URL
+            async with session.get(
+                f"https://pipedapi.kavin.rocks/streams/{video_id}",
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as s:
+                if s.status != 200:
+                    return None, None, None
+                stream_data = await s.json()
+                
+            if stream_data.get("audioStreams"):
+                audio_url = stream_data["audioStreams"][0]["url"]
+                return audio_url, title, thumbnail
+                
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Piped API Error: {e}")
+    
     return None, None, None
