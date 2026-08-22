@@ -35,11 +35,12 @@ active_calls = set()
 loop_enabled = set()
 
 YDL_OPTS = {
-    'format': 'bestaudio/best',
+    'format': 'bestaudio[ext=m4a]/bestaudio/best[height<=720]/best',
     'quiet': True,
     'no_warnings': True,
-    'extractor_args': {'youtube': {'player_client': ['android']}},
-    'cookiefile': 'cookies.txt',  # Bot detection bypass
+    'socket_timeout': 30,
+    'extractor_args': {'youtube': {'player_client': ['ios', 'android', 'web']}},
+    'cookiefile': 'cookies.txt',
 }
 
 def get_uptime():
