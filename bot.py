@@ -45,27 +45,48 @@ def get_audio_url(query):
         logger.error(f"yt_dlp error: {e}")
     return None, None
 
+import time as _time
+START_TIME = _time.time()
+
+def get_uptime():
+    seconds = int(_time.time() - START_TIME)
+    days, seconds = divmod(seconds, 86400)
+    hours, seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+    return f"{days}days, {hours}h:{minutes}m:{seconds}s"
+
 @app.on_message(filters.command("start"))
 async def start(client, message):
     keyboard = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("▶️ ᴘʟᴀʏ", callback_data="play_music"),
-            InlineKeyboardButton("📝 ᴄᴏᴍᴍᴀɴᴅs", callback_data="commands")
+            InlineKeyboardButton("➕ ᴀᴅᴅ ᴍᴇ ɪɴ ʏᴏᴜʀ ɢʀᴏᴜᴘ", url=f"https://t.me/{(await client.get_me()).username}?startgroup=true")
         ],
         [
-            InlineKeyboardButton("ℹ️ ᴀʙᴏᴜᴛ", callback_data="about"),
-            InlineKeyboardButton("🛠️ ᴍᴏᴅᴜʟᴇs", callback_data="modules")
+            InlineKeyboardButton("❓ ʜᴇʟᴘ ᴀɴᴅ ᴄᴏᴍᴍᴀɴᴅs", callback_data="commands")
         ],
         [
-            InlineKeyboardButton("👨‍💻 ᴅᴇᴠ", url="https://t.me/eren_aethonix"),
-            InlineKeyboardButton("📢 sᴜᴘᴘ", url="https://t.me/aethosupport")
+            InlineKeyboardButton("👨‍💻 ᴏᴡɴᴇʀ", url="https://t.me/eren_aethonix"),
+            InlineKeyboardButton("📢 sᴜᴘᴘᴏʀᴛ", url="https://t.me/aethosupport")
         ],
         [
-            InlineKeyboardButton("🔗 ɴᴇᴛᴡᴏʀᴋ", url="https://t.me/Aethonix_network")
+            InlineKeyboardButton("🔗 ᴄʜᴀɴɴᴇʟ", url="https://t.me/Aethonix_network")
         ]
     ])
-    await message.reply(
-        "🎵 ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴀᴇᴛʜᴏ ᴍᴜsɪᴄ ʙᴏᴛ!\n\nᴜsᴇ /play [song] ɪɴ ᴀ ɢʀᴏᴜᴘ",
+    caption = (
+        "──── 「 ᴀᴇᴛʜᴏɴɪx ᴍᴜsɪᴄ 」 ────\n\n"
+        f"Holaa 耀•|{message.from_user.first_name}!!\n\n"
+        "I am the fast and powerful music player bot with some awesome features.\n"
+        "- - - - - - - - - - - -\n"
+        f"➥Uptime: {get_uptime()}\n"
+        "➥ServerStorage: Render Cloud\n"
+        "➥CPU Load: Live\n"
+        "➥RAM Consumption: Live\n"
+        "- - - - - - - - - - - -\n\n"
+        "Click on the Help button to get information about my modules and commands."
+    )
+    await message.reply_photo(
+        photo="https://i.ibb.co/9mKvy2dM/196647.png",
+        caption=caption,
         reply_markup=keyboard
     )
 
