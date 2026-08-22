@@ -74,15 +74,15 @@ async def start(client, message):
     ])
     caption = (
         "──── 「 ᴀᴇᴛʜᴏɴɪx ᴍᴜsɪᴄ 」 ────\n\n"
-        f"Holaa 耀•|{message.from_user.first_name}!!\n\n"
-        "I am the fast and powerful music player bot with some awesome features.\n"
+        f"ʜᴏʟᴀᴀ 耀•|{message.from_user.first_name}!!\n\n"
+        "ɪ ᴀᴍ ᴛʜᴇ ғᴀsᴛ ᴀɴᴅ ᴘᴏᴡᴇʀғᴜʟ ᴍᴜsɪᴄ ᴘʟᴀʏᴇʀ ʙᴏᴛ ᴡɪᴛʜ sᴏᴍᴇ ᴀᴡᴇsᴏᴍᴇ ғᴇᴀᴛᴜʀᴇs.\n"
         "- - - - - - - - - - - -\n"
-        f"➥Uptime: {get_uptime()}\n"
-        "➥ServerStorage: Render Cloud\n"
-        "➥CPU Load: Live\n"
-        "➥RAM Consumption: Live\n"
+        f"➥ᴜᴘᴛɪᴍᴇ: {get_uptime()}\n"
+        "➥sᴇʀᴠᴇʀsᴛᴏʀᴀɢᴇ: ʀᴇɴᴅᴇʀ ᴄʟᴏᴜᴅ\n"
+        "➥ᴄᴘᴜ ʟᴏᴀᴅ: ʟɪᴠᴇ\n"
+        "➥ʀᴀᴍ ᴄᴏɴsᴜᴘᴛɪᴏɴ: ʟɪᴠᴇ\n"
         "- - - - - - - - - - - -\n\n"
-        "Click on the Help button to get information about my modules and commands."
+        "ᴄʟɪᴄᴋ ᴏɴ ᴛʜᴇ ʜᴇʟᴘ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ɪɴғᴏʀᴍᴀᴛɪᴏɴ ᴀʙᴏᴜᴛ ᴍʏ ᴍᴏᴅᴜʟᴇs ᴀɴᴅ ᴄᴏᴍᴍᴀɴᴅs."
     )
     await message.reply_photo(
         photo="https://i.ibb.co/9mKvy2dM/196647.png",
