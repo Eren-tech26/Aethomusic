@@ -1,12 +1,13 @@
 import yt_dlp
 import asyncio
+import os
 
 YDL_OPTS = {
     'format': 'bestaudio[ext=m4a]/bestaudio/best',
     'quiet': True,
     'no_warnings': True,
     'socket_timeout': 30,
-    'cookiefile': 'cookies.txt',
+    'cookiefile': os.path.join(os.path.dirname(__file__), '..', 'cookies.txt'),
     'http_headers': {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     },
