@@ -4,7 +4,7 @@ import os
 from aiohttp import web
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart, Command
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, URLInputFile
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
 import yt_dlp
 from config import BOT_TOKEN
 
@@ -47,7 +47,7 @@ async def start(message: types.Message):
         ]
     ])
     await message.reply_photo(
-        photo=URLInputFile("https://i.ibb.co/CpCtVvSr/file-000000005b8081f4bf38acf5b8eef638.png"),
+        photo=FSInputFile("start_image.png"),
         caption="🎵 ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴀᴇᴛʜᴏ ᴍᴜsɪᴄ ʙᴏᴛ! 🎵\n\nᴜsᴇ /ᴘʟᴀʏ [sᴏɴɢ]",
         reply_markup=keyboard
     )
