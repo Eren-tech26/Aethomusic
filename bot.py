@@ -28,12 +28,10 @@ queues = {}
 active_calls = set()
 loop_enabled = set()
 
-INVIDIOUS_INSTANCES = [ # updated
-    "https://invidious.kavin.rocks",
-    "https://vid.puffyan.us",
-    "https://y.com.sb",
-    "https://invidious.nerdvpn.de",
-    "https://invidious.snopyta.org",
+INVIDIOUS_INSTANCES = [
+    "https://invidious.io.lol",
+    "https://invidious.perennialte.ch",
+    "https://inv.nadeko.net",
 ]
 
 async def invidious_search(query):
