@@ -7,7 +7,9 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums import ChatMemberStatus
 from pytgcalls import PyTgCalls
 from pytgcalls.types import MediaStream
-from youtubesearchpython.__future__ import VideosSearch
+from helpers.yt import download_song as fetch_yt
+from helpers.spotify import SpotifyAPI
+from helpers.soundcloud import SoundCloudAPI
 import time as _time
 
 START_TIME = _time.time()
