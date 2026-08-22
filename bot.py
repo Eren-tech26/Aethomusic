@@ -151,21 +151,6 @@ async def help_cmd(client, message):
         "/stop — sᴛᴏᴘ & ʟᴇᴀᴠᴇ"
     )
 
-@call_py.on_stream_end()
-async def stream_end_handler(client, update):
-    chat_id = update.chat_id
-    if chat_id in queues and queues[chat_id]:
-        queues[chat_id].pop(0)
-    if chat_id in queues and queues[chat_id]:
-        next_song = queues[chat_id][0]
-        await call_py.play(chat_id, MediaStream(next_song['url']))
-    else:
-        try:
-            await call_py.leave_call(chat_id)
-        except Exception:
-            pass
-        active_calls.discard(chat_id)
-
 async def handle_ping(request):
     return web.Response(text="AethoMusic alive")
 
