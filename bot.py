@@ -34,6 +34,7 @@ YDL_OPTS = {
     'quiet': True,
     'no_warnings': True,
     'extractor_args': {'youtube': {'player_client': ['android']}},
+    'cookiefile': 'cookies.txt',  # Bot detection bypass
 }
 
 def get_uptime():
