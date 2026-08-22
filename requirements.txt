@@ -1,6 +1,7 @@
 pyrogram==2.0.106
-pytgcalls==2.1.0
 tgcrypto
 yt-dlp
 aiohttp
 aiofiles
+tgcalls==3.0.0.dev6
+pytgcalls==2.1.0
