@@ -30,6 +30,11 @@ def get_audio_url(query):
             'quiet': True,
             'no_warnings': True,
             'cookiefile': 'cookies.txt',
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['android', 'web'],
+                }
+            },
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"ytsearch:{query}", download=False)

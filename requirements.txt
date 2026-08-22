@@ -1,6 +1,6 @@
 kurigram
 tgcrypto
 py-tgcalls
-yt-dlp
+yt-dlp>=2026.8.19
 aiohttp
 aiofiles
