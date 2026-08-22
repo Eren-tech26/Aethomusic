@@ -1,0 +1,2 @@
+class SpotifyAPI:
+    pass
