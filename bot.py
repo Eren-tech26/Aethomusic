@@ -35,11 +35,14 @@ active_calls = set()
 loop_enabled = set()
 
 YDL_OPTS = {
-    'format': 'bestaudio[ext=m4a]/bestaudio/best[height<=720]/best',
+    'format': 'bestaudio[ext=m4a]/bestaudio/best',
     'quiet': True,
     'no_warnings': True,
     'socket_timeout': 30,
-    'extractor_args': {'youtube': {'player_client': ['ios', 'android', 'web']}},
+    'http_headers': {'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36'},
+    'extractor_args': {'youtube': {'player_client': ['android', 'ios', 'web']}},
+    'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
+}},
     'cookiefile': 'cookies.txt',
 }
 
