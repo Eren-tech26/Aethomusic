@@ -13,6 +13,11 @@ from pytgcalls.types import MediaStream
 from config import BOT_TOKEN, API_ID, API_HASH, SESSION_STRING
 
 import time as _time
+# Restore cookies from env var (Render)
+if os.getenv("YOUTUBE_COOKIES"):
+    with open("cookies.txt", "wb") as f:
+        f.write(base64.b64decode(os.getenv("YOUTUBE_COOKIES")))
+
 START_TIME = _time.time()
 
 logging.basicConfig(level=logging.INFO)
