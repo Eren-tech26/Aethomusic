@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 import yt_dlp
@@ -233,8 +234,7 @@ async def about(client, message: Message):
         "⚡ ғᴀsᴛ & ʀᴇʟɪᴀʙʟᴇ\n"
         "🔧 ʙᴜɪʟᴛ ᴡɪᴛʜ ᴘʏᴛʜᴏɴ & ᴘʏʀᴏɢʀᴀᴍ\n\n"
         "ᴅᴇᴠᴇʟᴏᴘᴇʀ: ᴇʀᴇɴ-ᴛᴇᴄʜ26\n"
-        "ᴠᴇʀsɪᴏɴ: 1.0\n"
-        "sᴛᴀᴛᴜs: ᴀᴄᴛɪᴠᴇ ✅",
+        "ᴠᴇʀsɪᴏɴ: 1.0",
         reply_markup=keyboard
     )
 
@@ -253,6 +253,11 @@ async def help_cmd(client, message: Message):
         "ᴍᴀᴅᴇ ᴡɪᴛʜ ❤️ ʙʏ ᴇʀᴇɴ-ᴛᴇᴄʜ26"
     )
 
-if __name__ == "__main__":
+async def main():
+    """Main async function"""
     logger.info("🎵 Aetho Music Bot started!")
-    app.run()
+    await app.start()
+    await asyncio.sleep(float('inf'))  # Keep bot running
+
+if __name__ == "__main__":
+    asyncio.run(main())
