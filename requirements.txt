@@ -7,3 +7,4 @@ aiofiles
 bgutil-ytdlp-pot-provider
 pillow
 youtube-search-python
+python-dotenv
