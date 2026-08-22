@@ -4,3 +4,5 @@ py-tgcalls
 yt-dlp>=2026.8.19
 aiohttp
 aiofiles
+bgutil-ytdlp-pot-provider
+pillow
