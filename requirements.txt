@@ -3,3 +3,4 @@ pytgcalls==3.0.0.post4
 yt-dlp==2026.8.19
 aiohttp==3.14.3
 python-dotenv==1.0.1
+tgcrypto
