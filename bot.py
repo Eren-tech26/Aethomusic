@@ -32,7 +32,7 @@ def get_audio_url(query):
             'cookiefile': 'cookies.txt',
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['android', 'web'],
+                    'player_client': ['web', 'tv'],
                 }
             },
         }
