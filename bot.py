@@ -25,7 +25,12 @@ active_calls = set()
 
 def get_audio_url(query):
     try:
-        ydl_opts = {'format': 'bestaudio/best', 'quiet': True, 'no_warnings': True}
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': True,
+            'no_warnings': True,
+            'cookiefile': 'cookies.txt',
+        }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"ytsearch:{query}", download=False)
             if info and 'entries' in info:
