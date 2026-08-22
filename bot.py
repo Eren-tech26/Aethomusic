@@ -47,7 +47,7 @@ async def start(message: types.Message):
         ]
     ])
     await message.reply_photo(
-        photo="https://ibb.co/9mKvy2dM",
+        photo="https://i.ibb.co/CpCtVvSr/file-000000005b8081f4bf38acf5b8eef638.png",
         caption="🎵 ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴀᴇᴛʜᴏ ᴍᴜsɪᴄ ʙᴏᴛ! 🎵\n\nᴜsᴇ /ᴘʟᴀʏ [sᴏɴɢ]",
         reply_markup=keyboard
     )
