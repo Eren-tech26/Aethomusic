@@ -43,11 +43,16 @@ async def is_admin(chat_id, user_id):
 
 async def fetch_audio(query):
     try:
-        results = VideosSearch(query, limit=1)
-        result_list = (await results.next()).get("result", [])
-        if result_list:
-            video = result_list[0]
-            return video.get("link"), video.get("title"), video.get("thumbnails")[0].get("url").split("?")[0]
+        import aiohttp
+        async with aiohttp.ClientSession() as session:
+            url = f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}"
+            async with session.get(url) as resp:
+                html = await resp.text()
+                import re
+                match = re.search(r'\"videoId\":\"([a-zA-Z0-9_-]{11})', html)
+                if match:
+                    vid_id = match.group(1)
+                    return f"https://www.youtube.com/watch?v={vid_id}", query, f"https://img.youtube.com/vi/{vid_id}/maxresdefault.jpg"
     except Exception as e:
         logger.error(f"Search error: {e}")
     return None, None, None
